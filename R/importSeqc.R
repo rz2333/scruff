@@ -232,6 +232,12 @@
 
     } else {
         for (i in seq_along(sampleDirs)) {
+            if (class == 'DelayedArray') {
+                mat[[i]] <- DelayedArray::DelayedArray(mat[[i]])
+            } else if (class == 'matrix') {
+                mat[[i]] <- as.matrix(mat[[i]])
+            }
+
             scei <- .constructSCEFromSeqcOutputs(
                 sampleName = .getSampleNames(sampleDirs[i]),
                 matrix = mat[[i]],
@@ -246,6 +252,75 @@
         }
     }
 }
+
+#' @name importSeqc
+#' @rdname importSeqc
+#' @title Construct SCE object from seqc output
+#' @description Read the filtered barcodes, features, and matrices for all
+#'  samples from (preferably a single run of) seqc output. Import and
+#'  combine them as one big \link[SingleCellExperiment]{SingleCellExperiment} object.
+#' @param SeqcDirs The root directories where seqc was run. These
+#'  folders should contain sample specific folders. Default \code{NULL},
+#'  meaning the paths for each sample will be specified in \emph{samples}
+#'  argument.
+#' @param samples Default \code{NULL}. Can be one of
+#' \itemize{
+#'   \item \code{NULL}. All samples within \emph{SeqcDirs} will be
+#'    imported. The order of samples will be first determined by the order of
+#'    \emph{SeqcDirs} and then by \link[base]{list.files}. This is only
+#'    for the case where \emph{SeqcDirs} is specified.
+#'   \item A vector containing sample names to import.
+#'    These names are the same as the folder names under \emph{SeqcDirs}.
+#'    This is only for the case where \emph{SeqcDirs} is specified.
+#'   \item A vector of folder paths for the samples to import. This is only for
+#'    the case where \emph{SeqcDirs} is \code{NULL}.
+#' }
+#' The cells in the final SCE object will be ordered in the same order of
+#' samples.
+#' @param prefix A vector containing the prefix of file names within each sample directory. 
+#' It cannot be null and the vector should have the same length as \emph{samples}.
+#' @param gzipped Boolean. \code{TRUE} if the seqc output files
+#' (sparse_counts_barcode.csv, sparse_counts_genes.csv, and sparse_molecule_counts.mtx) 
+#' were gzip compressed. \code{FALSE} otherwise. Default seqc outputs are not gzipped.
+#' Default \code{FALSE}.
+#' @param class Character. The class of the expression matrix stored in the SCE
+#' object. Can be one of "DelayedArray" (as returned by
+#' \link[DelayedArray]{DelayedArray} function), "Matrix" (as returned by
+#' \link[Matrix]{readMM} function), or "matrix" (as returned by
+#' \link[base]{matrix} function). Default "DelayedArray".
+#' @param feNotFirstCol Boolean. \code{TRUE} if first column of sparse_counts_genes.csv
+#' is row index and it will be removed. \code{FALSE} the first column will be kept. 
+#' @param cbNotFirstCol Boolean. \code{TRUE} if first column of sparse_counts_barcode.csv
+#' is row index and it will be removed. \code{FALSE} the first column will be kept. 
+#' @param combinedSample Boolean. If \code{TRUE}, \code{importSeqc} returns a 
+#' \code{SingleCellExperiment} object containing the combined count matrix, feature annotations 
+#' and the cell annotations. If \code{FALSE}, \code{importSeqc} returns a list containing multiple 
+#' \code{SingleCellExperiment} objects. Each \code{SingleCellExperiment} contains count matrix
+#' , feature anotations and cell annotations for each sample. 
+#' @details
+#' \code{importSeqc} imports output from seqc.
+#' The default sparse_counts_barcode.csv or sparse_counts_genes.csv from seqc output
+#' contains two columns. The first column is row index and the second column is cell-barcode 
+#' or gene symbol. \code{importSeqc} will remove first column. Alternatively, user can call 
+#' \code{cbNotFirstCol} or \code{feNotFirstCol} as FALSE to keep the first column
+#' of these files.  
+#' When \code{combinedSample} is TRUE, \code{importSeqc} will combined count matrix
+#' with genes detected in at least one sample. 
+#' @return A \code{SingleCellExperiment} object containing the combined count
+#'  matrix, the feature annotations, and the cell annotation.
+#' @examples
+#' # Example #1
+#' # The following filtered feature, cell, and matrix files were downloaded from
+#' # https://support.10xgenomics.com/single-cell-gene-expression/datasets/
+#' # 3.0.0/pbmc_1k_v3
+#' # The top 50 hg38 genes are included in this example.
+#' # Only the top 50 cells are included.
+#' sce <- importSeqc(
+#'     SeqcDirs = system.file("extdata", package = "scruff"),
+#'     samples = "pbmc_1k_50x50", 
+#'     prefix = 'pbmc_1k', 
+#'     combinedSample = FALSE)
+#' @export
 
 importSeqc <- function(
     SeqcDirs = NULL,
